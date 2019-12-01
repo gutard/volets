@@ -2,6 +2,7 @@
 
 from serial import Serial
 from serial.threaded import Packetizer, ReaderThread
+from struct import unpack
 from time import sleep
 
 
@@ -12,6 +13,11 @@ devices = {
     'bureau': b'\xb3\x84',
     'chambre': b'\xc5\xee',
 }
+
+
+def chunker(data, size):
+    for i in range(0, len(data), size):
+        yield data[i:i + size]
 
 
 class Command:
@@ -80,7 +86,7 @@ class OnOff(Command):
 
 
 class Response:
-    def __init__(self, packet):
+    def __new__(cls, packet):
         assert packet[0] == 0x01
         data = bytearray()
         alt = False
@@ -92,13 +98,40 @@ class Response:
                 alt = False
             else:
                 data.append(byte)
-        assert data[2:4] == (len(data) - 5).to_bytes(2, 'big')
-        # assert checksum
-        self.code = data[:2]
-        self.payload = data[5:-1]
+        actual_length = len(data) - 6
+        code, length, checksum, payload, lqi = unpack(f'!HHB{actual_length}sB', data)
+        assert length == actual_length + 1
+        # TODO: assert checksum
+        actual_class = {
+            0x8015: GetDevicesListResponse,
+        }.get(code, GenericResponse)
+        return actual_class(code, payload)
+
+
+class GenericResponse:
+    def __init__(self, code, payload):
+        self.code = code
+        self.payload = payload
 
     def __str__(self):
-        return f"code={self.code.hex()}, payload={self.payload.hex()}"
+        return f"GenericResponse: code=0x{self.code:x}, payload=0x{self.payload.hex()}"
+
+
+class Device:
+    def __init__(self, data):
+        self.id, self.addr, self.mac, self.power, self.lqi = unpack('!BHQBB', data)
+
+    def __str__(self):
+        return f"id=0x{self.id:x}, addr=0x{self.addr:x}, mac=0x{self.mac:x}, power=0x{self.power:x}, lqi=0x{self.lqi:x}"
+
+
+class GetDevicesListResponse:
+    def __init__(self, code, payload):
+        assert code == 0x8015
+        self.devices = [Device(data) for data in chunker(payload, 13)]
+
+    def __str__(self):
+        return f"GetDevicesListResponse:\n" + "\n".join([str(device) for device in self.devices])
 
 
 class Reader(Packetizer):
@@ -123,14 +156,15 @@ serial = Serial('/dev/ttyS0', 115200)
 with ReaderThread(serial, Reader) as protocol:
     # protocol.send(PermitJoining())
     # sleep(1000)
-    # protocol.send(GetDevicesList())
-    protocol.send(OnOff(devices['salon'], OnOff.UP))
+    protocol.send(GetDevicesList())
     sleep(1)
-    protocol.send(OnOff(devices['sam'], OnOff.UP))
-    sleep(1)
-    protocol.send(OnOff(devices['cuisine'], OnOff.UP))
-    sleep(1)
-    protocol.send(OnOff(devices['bureau'], OnOff.UP))
-    sleep(1)
-    protocol.send(OnOff(devices['chambre'], OnOff.UP))
-    sleep(1)
+    # protocol.send(OnOff(devices['salon'], OnOff.UP))
+    # sleep(1)
+    # protocol.send(OnOff(devices['sam'], OnOff.UP))
+    # sleep(1)
+    # protocol.send(OnOff(devices['cuisine'], OnOff.UP))
+    # sleep(1)
+    # protocol.send(OnOff(devices['bureau'], OnOff.UP))
+    # sleep(1)
+    # protocol.send(OnOff(devices['chambre'], OnOff.UP))
+    # sleep(1)
