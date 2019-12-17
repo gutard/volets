@@ -371,6 +371,12 @@ class Zigbee(Serial):
         assert isinstance(response, StatusResponse)
         assert response.status == 0x00
 
+    def all_toggle(self):
+        self.send(OnOff(0x01, OnOff.TOGGLE, group=True))
+        response = zigbee.receive()
+        assert isinstance(response, StatusResponse)
+        assert response.status == 0x00
+
 
 zigbee = Zigbee()
 zigbee.discover()
