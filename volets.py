@@ -283,9 +283,11 @@ class AddGroupResponse:
 class AttributeReportResponse:
     def __init__(self, code, payload):
         assert code == 0x8102
-        self.sqn, self.address, self.ep, self.cluster, self.id, self.size, self.type = unpack('!BHBHHHB', payload[:11])
+        self.sqn, self.address, self.ep, self.cluster, self.id, self.type, self.size = unpack('!BHBHHHB', payload[:11])
         self.data = payload[11:]
-        if self.cluster == 0x0402:
+        if self.cluster == 0x0000 and self.id == 0x0005:
+            self.decoded = f"-> identification={self.data.decode()}"
+        elif self.cluster == 0x0402:
             self.decoded = f"-> temperature={unpack('!h', self.data) / 100}°C"
         elif self.cluster == 0x0405:
             self.decoded = f"-> humidité={unpack('!H', self.data) / 100}%"
