@@ -187,10 +187,10 @@ class GenericResponse:
 class DeviceAnnounceResponse:
     def __init__(self, code, payload):
         assert code == 0x004d
-        self.addr, self.mac, self.capability, self.lqi = unpack('!HQBB', payload)
+        self.addr, self.mac, self.capability = unpack('!HQB', payload)
 
     def __str__(self):
-        return f"DeviceAnnounceResponse: addr=0x{self.addr:x}, mac=0x{self.mac:x}, capability=0x{self.capability:x}, lqi=0x{self.lqi:x}"
+        return f"DeviceAnnounceResponse: addr=0x{self.addr:x}, mac=0x{self.mac:x}, capability=0x{self.capability:x}"
 
 
 class Device:
@@ -284,11 +284,10 @@ class AttributeReportResponse:
     def __init__(self, code, payload):
         assert code == 0x8102
         self.sqn, self.address, self.ep, self.cluster, self.id, self.size, self.type = unpack('!BHBHHHB', payload[:11])
-        self.data = payload[11:11 + self.size]
-        self.status = payload[11 + self.size]
+        self.data = payload[11:]
 
     def __str__(self):
-        return f"AttributeReportResponse: sqn=0x{self.sqn:x}, ep=0x{self.ep:x}, cluster=0x{self.cluster:x}, id=0x{self.id:x}, size=0x{self.size:x}, type=0x{self.type:x}, data=0x{self.data:x}, status=0x{self.status:x}"
+        return f"AttributeReportResponse: sqn=0x{self.sqn:x}, ep=0x{self.ep:x}, cluster=0x{self.cluster:x}, id=0x{self.id:x}, size=0x{self.size:x}, type=0x{self.type:x}, data=0x{self.data:x}"
         if self.cluster == 0x0402:
             print(f"-> temperature={self.data / 100}°C")
         if self.cluster == 0x0405:
@@ -300,10 +299,10 @@ class AttributeReportResponse:
 class RouteDiscoveryConfirmReponse:
     def __init__(self, code, payload):
         assert code == 0x8701
-        self.sqn, self.status, self.network_status = unpack('!BBB', payload)
+        self.sqn, self.status = unpack('!BB', payload)
 
     def __str__(self):
-        return f"RouteDiscoveryConfirmReponse: sqn=0x{self.sqn:x}, status=0x{self.status:x}, network_status=0x{self.network_status:x}"
+        return f"RouteDiscoveryConfirmReponse: sqn=0x{self.sqn:x}, status=0x{self.status:x}"
 
 
 class ZigbeeTimeout(Exception):
