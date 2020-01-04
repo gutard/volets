@@ -287,12 +287,14 @@ class AttributeReportResponse:
         self.data = payload[12:]
         if self.cluster == 0x0000 and self.id == 0x0005:
             self.decoded = f", identification={self.data.decode()}"
-        elif self.cluster == 0x0402:
+        elif self.cluster == 0x0402 and self.id==0x0000:
             self.decoded = f", temperature={unpack('!h', self.data)[0] / 100}°C"
-        elif self.cluster == 0x0405:
+        elif self.cluster == 0x0405 and self.id==0x0000:
             self.decoded = f", humidité={unpack('!H', self.data)[0] / 100}%"
-        elif self.cluster == 0x0403:
+        elif self.cluster == 0x0403 and self.id==0x0000:
             self.decoded = f", pression={unpack('!h', self.data)[0]}mbar"
+        elif self.cluster == 0x0403 and self.id==0x0010:
+            self.decoded = f", pression={unpack('!h', self.data)[0] / 10}mbar"
         else:
             self.decoded = ""
 
