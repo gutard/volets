@@ -285,15 +285,17 @@ class AttributeReportResponse:
         assert code == 0x8102
         self.sqn, self.address, self.ep, self.cluster, self.id, self.size, self.type = unpack('!BHBHHHB', payload[:11])
         self.data = payload[11:]
+        if self.cluster == 0x0402:
+            self.decoded = f"-> temperature={unpack('!h', self.data) / 100}°C"
+        elif self.cluster == 0x0405:
+            self.decoded = f"-> humidité={unpack('!H', self.data) / 100}%"
+        elif self.cluster == 0x0403:
+            self.decoded = f"-> pression={unpack('!h', self.data)}mbar"
+        else:
+            self.decoded = ""
 
     def __str__(self):
-        return f"AttributeReportResponse: sqn=0x{self.sqn:x}, ep=0x{self.ep:x}, cluster=0x{self.cluster:x}, id=0x{self.id:x}, size=0x{self.size:x}, type=0x{self.type:x}, data=0x{self.data:x}"
-        if self.cluster == 0x0402:
-            print(f"-> temperature={self.data / 100}°C")
-        if self.cluster == 0x0405:
-            print(f"-> humidité={self.data / 100}%")
-        if self.cluster == 0x0403:
-            print(f"-> pression={self.data}mbar")
+        return f"AttributeReportResponse: sqn=0x{self.sqn:x}, ep=0x{self.ep:x}, cluster=0x{self.cluster:x}, id=0x{self.id:x}, size=0x{self.size:x}, type=0x{self.type:x}, data=0x{self.data.hex()}, decoded={self.decoded}"
 
 
 class RouteDiscoveryConfirmReponse:
