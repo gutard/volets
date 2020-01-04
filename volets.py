@@ -379,9 +379,11 @@ class Zigbee(Serial):
 
 
 zigbee = Zigbee()
-zigbee.discover()
+# zigbee.discover()
 # for device in zigbee.devices:
 #     if device.power == 1:
 #         zigbee.add_group(device, 1)
 # zigbee.down(zigbee.devices[0])
-# zigbee.all_down()
+#zigbee.all_down()
+#zigbee.all_up()
+zigbee.all_toggle()
