@@ -163,11 +163,14 @@ class Response:
         assert length == payload_length + 1  # payload + LQI
         # TODO: assert checksum
         actual_class = {
+            0x004d: DeviceAnnounceResponse,
             0x8000: StatusResponse,
             0x8015: GetDevicesListResponse,
             0x8043: SimpleDescriptorResponse,
             0x8045: ActiveEndpointsResponse,
             0x8060: AddGroupResponse,
+            0x8102: AttributeReportResponse,
+            0x8701: RouteDiscoveryConfirmReponse,
         }.get(code, GenericResponse)
         return actual_class(code, payload)
 
@@ -181,6 +184,15 @@ class GenericResponse:
         return f"GenericResponse: code=0x{self.code:x}, payload=0x{self.payload.hex()}"
 
 
+class DeviceAnnounceResponse:
+    def __init__(self, code, payload):
+        assert code == 0x004d
+        self.addr, self.mac, self.capability, self.lqi = unpack('!HQBB', payload)
+
+    def __str__(self):
+        return f"DeviceAnnounceResponse: addr=0x{self.addr:x}, mac=0x{self.mac:x}, capability=0x{self.capability:x}, lqi=0x{self.lqi:x}"
+
+
 class Device:
     def __init__(self, data):
         self.id, self.addr, self.mac, self.power, self.lqi = unpack('!BHQBB', data)
@@ -192,10 +204,10 @@ class Device:
 class StatusResponse:
     def __init__(self, code, payload):
         assert code == 0x8000
-        self.status, self.sequence_number, self.code = unpack('!BBH', payload)
+        self.status, self.sqn, self.code = unpack('!BBH', payload)
 
     def __str__(self):
-        return f"StatusResponse: status=0x{self.status:x}, sequence_number=0x{self.sequence_number:x}, code=0x{self.code:x}"
+        return f"StatusResponse: status=0x{self.status:x}, sqn=0x{self.sqn:x}, code=0x{self.code:x}"
 
 
 class GetDevicesListResponse:
@@ -227,7 +239,7 @@ class SimpleDescriptorResponse:
     def __init__(self, code, payload):
         assert code == 0x8043
         (
-            self.sequence_number,
+            self.sqn,
             self.status,
             self.address,
             self.length,
@@ -245,27 +257,53 @@ class SimpleDescriptorResponse:
         assert len(self.out_clusters) == self.out_count
 
     def __str__(self):
-        return f"SimpleDescriptorResponse: sequence_number=0x{self.sequence_number:x}, status=0x{self.status:x}, address=0x{self.address:x}, endpoint=0x{self.endpoint:x}, profile=0x{self.profile:x}, id=0x{self.id:x}, in_count=0x{self.in_count:x}, out_count=0x{self.out_count:x}, in_clusters=\n" + "\n".join([str(cluster) for cluster in self.in_clusters]) + "\nout_clusters=\n" + "\n".join([str(cluster) for cluster in self.out_clusters])
+        return f"SimpleDescriptorResponse: sqn=0x{self.sqn:x}, status=0x{self.status:x}, address=0x{self.address:x}, endpoint=0x{self.endpoint:x}, profile=0x{self.profile:x}, id=0x{self.id:x}, in_count=0x{self.in_count:x}, out_count=0x{self.out_count:x}, in_clusters=\n" + "\n".join([str(cluster) for cluster in self.in_clusters]) + "\nout_clusters=\n" + "\n".join([str(cluster) for cluster in self.out_clusters])
 
 
 class ActiveEndpointsResponse:
     def __init__(self, code, payload):
         assert code == 0x8045
-        self.sequence_number, self.status, self.address, self.count = unpack('!BBHB', payload[:5])
+        self.sqn, self.status, self.address, self.count = unpack('!BBHB', payload[:5])
         self.endpoints = [Endpoint(data) for data in chunker(payload[5:], 1)]
         assert len(self.endpoints) == self.count
 
     def __str__(self):
-        return f"ActiveEndpointsResponse: sequence_number=0x{self.sequence_number:x}, status=0x{self.status:x}, address=0x{self.address:x}, count=0x{self.count:x}\n" + "\n".join([str(endpoint) for endpoint in self.endpoints])
+        return f"ActiveEndpointsResponse: sqn=0x{self.sqn:x}, status=0x{self.status:x}, address=0x{self.address:x}, count=0x{self.count:x}\n" + "\n".join([str(endpoint) for endpoint in self.endpoints])
 
 
 class AddGroupResponse:
     def __init__(self, code, payload):
         assert code == 0x8060
-        self.sequence_number, self.endpoint, self.cluster, self.status, self.group, self.address = unpack('!BBHBHH', payload)
+        self.sqn, self.endpoint, self.cluster, self.status, self.group, self.address = unpack('!BBHBHH', payload)
 
     def __str__(self):
-        return f"AddGroupResponse: sequence_number=0x{self.sequence_number:x}, endpoint=0x{self.endpoint:x}, cluster=0x{self.cluster:x}, status=0x{self.status:x}, group=0x{self.group:x}, address=0x{self.address:x}"
+        return f"AddGroupResponse: sqn=0x{self.sqn:x}, endpoint=0x{self.endpoint:x}, cluster=0x{self.cluster:x}, status=0x{self.status:x}, group=0x{self.group:x}, address=0x{self.address:x}"
+
+
+class AttributeReportResponse:
+    def __init__(self, code, payload):
+        assert code == 0x8102
+        self.sqn, self.address, self.ep, self.cluster, self.id, self.size, self.type = unpack('!BHBHHHB', payload[:11])
+        self.data = payload[11:11 + self.size]
+        self.status = payload[11 + self.size]
+
+    def __str__(self):
+        return f"AttributeReportResponse: sqn=0x{self.sqn:x}, ep=0x{self.ep:x}, cluster=0x{self.cluster:x}, id=0x{self.id:x}, size=0x{self.size:x}, type=0x{self.type:x}, data=0x{self.data:x}, status=0x{self.status:x}"
+        if self.cluster == 0x0402:
+            print(f"-> temperature={self.data / 100}°C")
+        if self.cluster == 0x0405:
+            print(f"-> humidité={self.data / 100}%")
+        if self.cluster == 0x0403:
+            print(f"-> pression={self.data}mbar")
+
+
+class RouteDiscoveryConfirmReponse:
+    def __init__(self, code, payload):
+        assert code == 0x8701
+        self.sqn, self.status, self.network_status = unpack('!BBB', payload)
+
+    def __str__(self):
+        return f"RouteDiscoveryConfirmReponse: sqn=0x{self.sqn:x}, status=0x{self.status:x}, network_status=0x{self.network_status:x}"
 
 
 class ZigbeeTimeout(Exception):
@@ -384,6 +422,6 @@ zigbee = Zigbee()
 #     if device.power == 1:
 #         zigbee.add_group(device, 1)
 # zigbee.down(zigbee.devices[0])
-#zigbee.all_down()
-#zigbee.all_up()
+# zigbee.all_down()
+# zigbee.all_up()
 zigbee.all_toggle()
