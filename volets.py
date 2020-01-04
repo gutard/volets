@@ -299,7 +299,7 @@ class AttributeReportResponse:
             self.decoded = ""
 
     def __str__(self):
-        return f"AttributeReportResponse: sqn=0x{self.sqn:x}, ep=0x{self.ep:x}, cluster=0x{self.cluster:x}, id=0x{self.id:x}, size=0x{self.size:x}, type=0x{self.type:x}, data=0x{self.data.hex()}{self.decoded}"
+        return f"AttributeReportResponse: sqn=0x{self.sqn:x}, address=0x{self.address:x}, ep=0x{self.ep:x}, cluster=0x{self.cluster:x}, id=0x{self.id:x}, size=0x{self.size:x}, type=0x{self.type:x}, data=0x{self.data.hex()}{self.decoded}"
 
 
 class RouteDiscoveryConfirmReponse:
