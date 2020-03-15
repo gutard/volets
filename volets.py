@@ -318,7 +318,7 @@ class ZigbeeTimeout(Exception):
 class Zigbee(Serial):
     devices = []
 
-    def __init__(self, port='/dev/ttyS0', baudrate=115200, timeout=1, **kwargs):
+    def __init__(self, port='/dev/ttyS0', baudrate=115200, timeout=5, **kwargs):
         super().__init__(port, baudrate, timeout=timeout, **kwargs)
 
     def receive(self):
@@ -352,15 +352,18 @@ class Zigbee(Serial):
         self.send(ActiveEndpointsRequest(device.addr))
         response = zigbee.receive()
         assert isinstance(response, StatusResponse)
-        assert response.status == 0x00
+        if response.status != 0x00:
+            print(f"Error status 0x{response.status:x} when getting endpoint for device 0x{device.addr:x}")
+            device.endpoints = []
+            return
         try:
             response = zigbee.receive()
         except ZigbeeTimeout:
-            print(f"Failed to get endpoints for device 0x{device.addr:x}")
+            print(f"Timeout when getting endpoints for device 0x{device.addr:x}")
             device.endpoints = []
-        else:
-            assert isinstance(response, ActiveEndpointsResponse)
-            device.endpoints = response.endpoints
+            return
+        assert isinstance(response, ActiveEndpointsResponse)
+        device.endpoints = response.endpoints
 
     def get_simple_descriptor(self, device, endpoint):
         self.send(SimpleDescriptorRequest(device.addr, endpoint.id))
@@ -378,8 +381,10 @@ class Zigbee(Serial):
     def discover(self):
         zigbee.get_devices_list()
         for device in self.devices:
+            print("=> DEVICE", device)
             zigbee.get_active_endpoints(device)
             for endpoint in device.endpoints:
+                print("  => ENDPOINT", endpoint)
                 self.get_simple_descriptor(device, endpoint)
 
     def add_group(self, device, group):
@@ -416,9 +421,9 @@ class Zigbee(Serial):
 
     def all_toggle(self):
         self.send(OnOff(0x01, OnOff.TOGGLE, group=True))
-        response = zigbee.receive()
-        assert isinstance(response, StatusResponse)
-        assert response.status == 0x00
+#        response = zigbee.receive()
+#        assert isinstance(response, StatusResponse)
+#        assert response.status == 0x00
 
 
 zigbee = Zigbee()
@@ -430,3 +435,12 @@ zigbee = Zigbee()
 # zigbee.all_down()
 # zigbee.all_up()
 zigbee.all_toggle()
+# zigbee.send(PermitJoining())
+
+while False:
+# while True:
+    try:
+        zigbee.receive()
+    except ZigbeeTimeout:
+        print(".", end="", flush=True)
+        pass
